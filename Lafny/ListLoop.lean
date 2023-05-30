@@ -67,3 +67,33 @@ def listSumSq (list : List Nat) : { m // m = (list.map (fun n => n^2)).sum } :=
   ⟨sum, by simp [inv]⟩
 
 
+def list_loop_with_invariant' {α State : Type _}
+      (list : List α)
+      (invariant : Fin list.length.succ → State → Prop)
+      (init : { s : State // invariant 0 s})
+      (next : (i : Fin list.length) → α → (state : State) → (inv : invariant (Fin.castSucc i) state) → {new_state // invariant (Fin.succ i) new_state}):
+    { state // invariant (Fin.last list.length) state } :=
+  have : list.length + 0 = list.length ∧ invariant 0 init.1 := by
+    constructor
+    . rw [add_zero]
+    . exact init.2
+  go list 0 init this
+where
+  go : (remaining : List α) → (i : Fin list.length.succ) → (state : State) →
+        (hinv : remaining.length + i = list.length ∧ invariant i state) →
+          { new_state : State // invariant (Fin.last list.length) new_state }
+  | [], i, state, hinv => by
+      use state
+      rw [List.length_nil, zero_add] at hinv
+      convert hinv.2
+      ext; rw [hinv.1]; simp
+  | a :: as, i, state, hinv =>
+    have h1: as.length + (i + 1) = list.length := by
+      apply Eq.trans _ hinv.1
+      rw [add_comm _ 1, ←add_assoc, List.length_cons]
+    have h2: (i : ℕ) < list.length :=
+      lt_of_lt_of_eq (Nat.lt_of_succ_le (Nat.le_add_left _ _)) h1
+    let i' : Fin (list.length) := ⟨i, h2⟩
+    have h3 : invariant (Fin.succ i') ↑(next i' list[i'] state hinv.2) := by 
+      exact (next i' list[i'] state hinv.2).2
+    go as (Fin.succ i') (next i' list[i'] state hinv.2) ⟨h1, h3⟩
