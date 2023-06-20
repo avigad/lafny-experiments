@@ -14,7 +14,7 @@ def foo (n : Nat) : Nat := Id.run do
     sum := sum + i
   sum
 
-#eval foo 10
+-- #eval foo 10
 
 /-
 How do we prove that it does what it is supposed to? Well, the program translates essentially to
@@ -89,6 +89,32 @@ where
       . rw [add_comm i, ←add_assoc, hinv.1]
       . exact step _ _ hinv.2
     go b (i + 1) (next_state i state) this
+
+def loop_with_invariant' {State : Type _}
+      (invariant : Nat → State → Prop)
+      (init : {state // invariant 0 state})
+      (next : ∀ i state, invariant i state → {new_state // invariant (i + 1) new_state})
+      (n : Nat) :
+    { state // invariant n state } :=
+  have : n + 0 = n ∧ invariant 0 init := by
+    constructor
+    . rw [add_zero]
+    . exact init.2
+  go n 0 init this
+where
+  go : (b : Nat) → (i : Nat) → (state : State) →
+      (hinv : b + i = n ∧ invariant i state) → { state : State // invariant n state }
+  | 0,       i, state, hinv => by
+      use state
+      rw [zero_add] at hinv
+      rw [←hinv.1]
+      exact hinv.2
+  | (b + 1), i, state, hinv =>
+    have : b + (i + 1) = n ∧ invariant (i + 1) ((next i state hinv.2)) := by
+      constructor
+      . rw [add_comm i, ←add_assoc, hinv.1]
+      . exact (next i state hinv.2).2
+    go b (i + 1) (next i state hinv.2) this
 
 /-
 With this simple gadget, it is a lot easier to do the loop plumbing. It is natural to write the
