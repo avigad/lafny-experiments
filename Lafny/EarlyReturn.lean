@@ -40,3 +40,14 @@ where
     use Done state
     exact hinv.2
     
+def foo' := Id.run do
+  let mut x := 0
+  while x < 5 do
+    x := x + 1
+  return x
+
+#print foo'
+
+#check forIn
+
+#check Lean.Loop.mk
