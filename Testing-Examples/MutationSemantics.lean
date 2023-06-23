@@ -2,7 +2,7 @@
   This is interestring. This loop suggests that inner-loops
   can only sometimes mutate outerloops. The `z` mutates as 
   it would in c, but the `x` does not. This conflicts with
-  the description in do unchaine:
+  the description in do unchained:
 
 
   "Declaring a mutable variable should grant us access to its value in the
@@ -25,4 +25,4 @@ def mutationSemantics := do
     IO.println z
   
 #eval mutationSemantics
-  
+#print MProd

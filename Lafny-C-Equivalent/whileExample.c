@@ -1,4 +1,6 @@
 /*
+// Without pretty syntax
+
 def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ) :
     {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} :=
   let ⟨p, even_p, npos_p⟩ := while_loop_with_invariant'
