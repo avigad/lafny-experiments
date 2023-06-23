@@ -92,3 +92,6 @@ def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ
       ⟨(p.1 - 2, f p.2), ⟨hf _ inv_p, this⟩⟩)
   have : p.1 = 0 := by simpa using npos_p
   ⟨p, even_p, this⟩
+
+#eval whileExample' (fun n => 2 * n) (fun n => by simp [parity_simps]) 12
+
