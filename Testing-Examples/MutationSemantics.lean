@@ -19,10 +19,15 @@ def mutationSemantics := do
   let mut x := 10
   let mut z := 0
   for _ in [1:x] do
-    x := x + 1
-    z := z + 1
-    IO.println x 
-    IO.println z
+    -- z := z + 1
+    -- IO.println x 
+    -- IO.println z
+    return
+  IO.println s!"hi"
   
+  
+#check ForIn
+  
+#print mutationSemantics
 #eval mutationSemantics
 #print MProd

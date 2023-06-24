@@ -63,29 +63,33 @@ while (x < 100) {
 
 }
 -/
-def whileExample'' (n : ℕ) :
-  IO {p : ℕ × ℕ × ℕ  // p.1 = 0 ∧ p.2.1 > 0 } := do
-  let ⟨p, _, _⟩ ← while_loop_with_invariantM
-    (invariant := fun p : ℕ × ℕ × ℕ => p.2.1 > 0)
-    (cond := fun p => p.1 < 100)
-    (meas := fun p => p.1)
-    (init := ⟨(n, 10, 0), by simp⟩)
-    (next := fun p inv_p p1_gt =>
-      -- have p1_pos : 0 < p.1 := by _
-      -- have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
-      do
-        IO.println s!"foo {p.2}"
-        let y := p.2.1 + 10
-        let ⟨q, _, _⟩ ←  while_loop_with_invariantM
-          (invariant := fun p : ℕ × ℕ × ℕ => True)
-          (cond := fun p => p.1 < 50)
-          (meas := fun p => p.1)
-          (init := ⟨⟨p.1, y, p.2.2⟩, by trivial⟩)
-          (next := fun p _ _ => do
-            IO.println s!"y: {p.2.1} z: {p.2.2}"
-            return ⟨(p.1 + 1, p.2.1 + 1, p.2.2 + 5), by sorry⟩)
-        return ⟨(q.1 + 1, q.2.1 + 10, q.2.2), by sorry⟩)
-  return ⟨p, sorry⟩
+
+-- You can't do this to this is kinda fake state :/
+
+-- def whileExample'' (n : ℕ) :
+--   IO {p : ℕ × ℕ × ℕ  // p.1 = 0 ∧ p.2.1 > 0 } := do
+--   let ⟨p, _, _⟩ ← while_loop_with_invariantM
+--     (invariant := fun p : ℕ × ℕ × ℕ => p.2.1 > 0)
+--     (cond := fun p => p.1 < 100)
+--     (meas := fun p => p.1)
+--     (init := ⟨(n, 10, 0), by simp⟩)
+--     (next := fun p inv_p p1_gt =>
+--       -- have p1_pos : 0 < p.1 := by _
+--       -- have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
+--       do
+--         IO.println s!"foo {p.2}"
+--         let mut y :=  10
+--         let ⟨q, _, _⟩ ←  while_loop_with_invariantM
+--           (invariant := fun p : Nat => True)
+--           (cond := fun p => p < 50)
+--           (meas := fun p => p)
+--           (init := ⟨0, by trivial⟩)
+--           (next := fun p _ _ => do
+--             IO.println s!"y: {p.2.1} z: {p.2.2}"
+--             y := y + 10
+--             return ⟨p + 1, by sorry⟩)
+--         return ⟨(p.1 + 1, q + 10, q), by sorry⟩)
+--   return ⟨p, sorry⟩
 
 
-#eval whileExample'' 5
+-- #eval whileExample'' 5
