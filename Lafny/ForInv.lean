@@ -23,7 +23,7 @@ def myForM_forIn {β : Type _}
   | .error a => pure a
 
 
-
+#check ForIn
 
 -- in theory this might be it, just put some fancy syntax around it.
 -- I need to read Metaprogramming in Lean to figure out what to do next
@@ -61,7 +61,8 @@ def listForInv {α : Type u} {β : Type v} {m : Type v → Type w} [Monad m]
     (as : List α) 
     (invariant : β → Prop) 
     (init : {st // invariant st}) 
-    (next : α → {st // invariant st} → m (ForInStep {st // invariant st})) : m {st // invariant st} :=
+    (next : α → {st // invariant st} → m (ForInStep {st // invariant st})) 
+    : m {st // invariant st} :=
   let rec @[specialize] loop
     | [], b    => pure b
     | a::as, b => do
@@ -72,3 +73,22 @@ def listForInv {α : Type u} {β : Type v} {m : Type v → Type w} [Monad m]
 
 instance : ForInv m (List α) α where
   forInv := listForInv
+
+-- I'm not sure why this would be useful, but it seems kinda interesting
+-- as a structure so why not
+def optForInv {α : Type u} {β : Type v} {m : Type v → Type w} [Monad m]
+    (opta : Option α)
+    (invariant : β → Prop)
+    (init : {st // invariant st})
+    (next : α → {st // invariant st} → m (ForInStep {st // invariant st}))
+    : m {st // invariant st} :=
+  let rec @[specialize] update
+    | none, b => pure b
+    | some a, b => do
+      match (← next a b) with
+      | ForInStep.done b' => pure b'
+      | ForInStep.yield b' => pure b'
+  update opta init
+
+instance : ForInv m (Option α) α where
+  forInv := optForInv
