@@ -1,3 +1,6 @@
+import Mathlib.Data.Nat.Parity
+import Mathlib.Data.List.Basic
+import Std.Data.List.Lemmas
 
 def proj (x : ForInStep y') :=
   match x with 
@@ -51,25 +54,45 @@ class ForInv (m : Type u₁ → Type u₂) (ρ : Type u) (α : outParam (Type v)
   ```
   (Here `b` corresponds to the variables mutated in the loop.) -/
   forInv {β : Type _} [Monad m] 
-    (container : ρ) 
+    (container : ρ)
+    [Membership α ρ]
     (invariant : β → Prop) 
     (b : {st : β // invariant st}) 
-    (next : α → {st // invariant st} → m (ForInStep {st // invariant st}))
+    (next : {a : α // a ∈ container} → {st // invariant st} → m (ForInStep {st // invariant st}))
     : m {st // invariant st}
 
-def listForInv {α : Type u} {β : Type v} {m : Type v → Type w} [Monad m] 
-    (as : List α) 
+def listForInv {α : Type _} {β : Type v} {m : Type v → Type w} [Monad m]
+    (xs : List α)
     (invariant : β → Prop) 
     (init : {st // invariant st}) 
-    (next : α → {st // invariant st} → m (ForInStep {st // invariant st})) 
+    (next : {a // a ∈ xs} → {st // invariant st} → m (ForInStep {out // invariant out})) 
     : m {st // invariant st} :=
-  let rec @[specialize] loop
-    | [], b    => pure b
-    | a::as, b => do
-      match (← next a b) with
-      | ForInStep.done b'  => pure b'
-      | ForInStep.yield b' => loop as b'
-  loop as init
+  let rec @[specialize] loop (L : List α) (hL : ∀ x ∈ L, x ∈ xs) (b : {st // invariant st}) :=
+    match L with
+    | [] => pure b
+    | a::as => do
+        match (← next ⟨a, by exact hL a (by exact (List.mem_cons_self a as))⟩ b) with
+        | ForInStep.done b'  => pure b'
+        | ForInStep.yield b' => loop as (fun x hx => hL x (by simp [hx])) b'
+  loop xs (by simp) init
+
+def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L →  Even x) := Id.run do
+  let mut sum := 0;
+  sum ← listForInv L (fun sum => Even sum) ⟨sum, by simp⟩ 
+    (fun a sum => do 
+      let ⟨st, stInv⟩ ← sum
+      let out := st + a.1
+      return .yield ⟨out, by 
+        simp
+        have sumEven : Even st := by simp [stInv]
+        have aEven : Even a.1 := by exact h a.1 a.2
+        apply Nat.even_add.2
+        exact ⟨fun _ => aEven, fun _ => sumEven⟩
+      ⟩
+    )
+  return sum
+
+#check sumOfEven [2, 4] (by simp)
 
 instance : ForInv m (List α) α where
   forInv := listForInv
