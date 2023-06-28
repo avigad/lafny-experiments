@@ -76,7 +76,7 @@ def listForInv {α : Type _} {β : Type v} {m : Type v → Type w} [Monad m]
         | ForInStep.yield b' => loop as (fun x hx => hL x (by simp [hx])) b'
   loop xs (by simp) init
 
-def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L →  Even x) := Id.run do
+def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
   let mut sum := 0;
   sum ← listForInv L (fun sum => Even sum) ⟨sum, by simp⟩ 
     (fun a sum => do 
