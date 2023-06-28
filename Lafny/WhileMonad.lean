@@ -65,31 +65,32 @@ while (x < 100) {
 -/
 
 -- You can't do this to this is kinda fake state :/
+-- Note: This is a nonissue I misunderstood how the looping works currently
 
-def whileExample'' (n : ℕ) :
-  IO {p : ℕ × ℕ × ℕ  // p.1 = 0 ∧ p.2.1 > 0 } := do
-  let ⟨p, _, _⟩ ← while_loop_with_invariantM
-    (invariant := fun p : ℕ × ℕ × ℕ => p.2.1 > 0)
-    (cond := fun p => p.1 < 100)
-    (meas := fun p => p.1)
-    (init := ⟨(n, 10, 0), by simp⟩)
-    (next := fun p inv_p p1_gt =>
-      -- have p1_pos : 0 < p.1 := by _
-      -- have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
-      do
-        IO.println s!"foo {p.2}"
-        let mut bar := 10
-        let ⟨q, _, _⟩ ← while_loop_with_invariantM
-          (invariant := fun p : Nat => True)
-          (cond := fun p => p < 50)
-          (meas := fun p => p)
-          (init := ⟨0, by trivial⟩)
-          (next := fun p _ _ => do
-            IO.println s!"y: {p.2.1} z: {p.2.2}"
-            bar ← bar + 10
-            return ⟨p + 1, by sorry⟩)
-        return ⟨(p.1 + 1, q + 10, q), by sorry⟩)
-  return ⟨p, sorry⟩
+-- def whileExample'' (n : ℕ) :
+--   IO {p : ℕ × ℕ × ℕ  // p.1 = 0 ∧ p.2.1 > 0 } := do
+--   let ⟨p, _, _⟩ ← while_loop_with_invariantM
+--     (invariant := fun p : ℕ × ℕ × ℕ => p.2.1 > 0)
+--     (cond := fun p => p.1 < 100)
+--     (meas := fun p => p.1)
+--     (init := ⟨(n, 10, 0), by simp⟩)
+--     (next := fun p inv_p p1_gt =>
+--       -- have p1_pos : 0 < p.1 := by _
+--       -- have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
+--       do
+--         IO.println s!"foo {p.2}"
+--         let mut bar := 10
+--         let ⟨q, _, _⟩ ← while_loop_with_invariantM
+--           (invariant := fun p : Nat => True)
+--           (cond := fun p => p < 50)
+--           (meas := fun p => p)
+--           (init := ⟨0, by trivial⟩)
+--           (next := fun p _ _ => do
+--             IO.println s!"y: {p.2.1} z: {p.2.2}"
+--             bar ← bar + 10
+--             return ⟨p + 1, by sorry⟩)
+--         return ⟨(p.1 + 1, q + 10, q), by sorry⟩)
+--   return ⟨p, sorry⟩
 
 
 -- #eval whileExample'' 5
