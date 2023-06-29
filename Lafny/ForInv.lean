@@ -32,7 +32,7 @@ def myForM_forIn {β : Type _}
 -- I need to read Metaprogramming in Lean to figure out what to do next
 -- here, but this is a very large step I think.
 
-class ForInv (m : Type u₁ → Type u₂) (ρ : Type u) (α : outParam (Type v)) where
+class ForInv (m : Type u₁ → Type u₂) (ρ : Type u) (α : outParam (Type v)) [Membership α ρ] where
   /-- `forIn x b f : m β` runs a for-loop in the monad `m` with additional state `β`.
   This traverses over the "contents" of `x`, and passes the elements `a : α` to
   `f : α → β → m (ForInStep β)`. `b : β` is the initial state, and the return value
@@ -55,7 +55,6 @@ class ForInv (m : Type u₁ → Type u₂) (ρ : Type u) (α : outParam (Type v)
   (Here `b` corresponds to the variables mutated in the loop.) -/
   forInv {β : Type _} [Monad m] 
     (container : ρ)
-    [Membership α ρ]
     (invariant : β → Prop) 
     (b : {st : β // invariant st}) 
     (next : {a : α // a ∈ container} → {st // invariant st} → m (ForInStep {st // invariant st}))
@@ -77,10 +76,10 @@ def listForInv {α : Type _} {β : Type v} {m : Type v → Type w} [Monad m]
   loop xs (by simp) init
 
 def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
-  let mut sum : {n : Nat // Even n} := ⟨0, by simp⟩;
-  sum ← listForInv L (fun sum => Even sum) sum
+  let mut state : {n : Nat // Even n} := ⟨0, by simp⟩;
+  state ← listForInv L (fun sum => Even sum) state
     (fun a sum => do 
-      let ⟨st, stInv⟩ ← sum
+      let ⟨st, stInv⟩ := sum
       let out := st + a.1
       return .yield ⟨out, by 
         simp
@@ -90,28 +89,9 @@ def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
         exact ⟨fun _ => aEven, fun _ => sumEven⟩
       ⟩
     )
-  return sum
+  return state
 
 #eval sumOfEven [2, 4] (by simp)
 
 instance : ForInv m (List α) α where
   forInv := listForInv
-
--- I'm not sure why this would be useful, but it seems kinda interesting
--- as a structure so why not
-def optForInv {α : Type u} {β : Type v} {m : Type v → Type w} [Monad m]
-    (opta : Option α)
-    (invariant : β → Prop)
-    (init : {st // invariant st})
-    (next : α → {st // invariant st} → m (ForInStep {st // invariant st}))
-    : m {st // invariant st} :=
-  let rec @[specialize] update
-    | none, b => pure b
-    | some a, b => do
-      match (← next a b) with
-      | ForInStep.done b' => pure b'
-      | ForInStep.yield b' => pure b'
-  update opta init
-
-instance : ForInv m (Option α) α where
-  forInv := optForInv
