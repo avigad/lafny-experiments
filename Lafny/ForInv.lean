@@ -77,8 +77,8 @@ def listForInv {α : Type _} {β : Type v} {m : Type v → Type w} [Monad m]
   loop xs (by simp) init
 
 def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
-  let mut sum := 0;
-  sum ← listForInv L (fun sum => Even sum) ⟨sum, by simp⟩ 
+  let mut sum : {n : Nat // Even n} := ⟨0, by simp⟩;
+  sum ← listForInv L (fun sum => Even sum) sum
     (fun a sum => do 
       let ⟨st, stInv⟩ ← sum
       let out := st + a.1
@@ -92,7 +92,7 @@ def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
     )
   return sum
 
-#check sumOfEven [2, 4] (by simp)
+#eval sumOfEven [2, 4] (by simp)
 
 instance : ForInv m (List α) α where
   forInv := listForInv
