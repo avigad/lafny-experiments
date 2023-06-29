@@ -1,7 +1,6 @@
 import Mathlib.Data.Nat.Parity
 import Mathlib.Data.List.Basic
 import Std.Data.List.Lemmas
-
 import Lafny.Util 
 
 
@@ -66,7 +65,7 @@ class ForInv (m : Type u₁ → Type u₂) (α : outParam (Type u)) (ρ : Type v
     return .yield b)
   ```
   (Here `b` corresponds to the variables mutated in the loop.) -/
-  forInv {β : Type u₁} [Monad m] [C : Container α ρ]
+  forInv {β : Type u₁} [Monad m] [C: Container α ρ]
     (container : ρ)
     (invariant : Fin (C.size container).succ → β → Prop) 
     (b : {st : β // invariant 0 st}) 
@@ -77,7 +76,7 @@ def listForInv {α : outParam (Type u)} {β : Type v} {m : Type v → Type w} [M
     (L : List α)
     (invariant : Fin L.length.succ → β → Prop) 
     (init : {st // invariant 0 st}) 
-    (next : (i : Fin (L.length)) → {x // x ∈ L} → {st // invariant (Fin.castSucc i) st} → m (ForInStep {out // invariant (Fin.succ i) out})) 
+    (next : (i : Fin (L.length)) → {st // invariant (Fin.castSucc i) st} → m (ForInStep {out // invariant (Fin.succ i) out})) 
     : m { pr : (Fin L.length.succ) × β // invariant pr.1 pr.2} :=
   let rec @[specialize] loop : (remaining : List α) → (hRem : ∀ x, x ∈ remaining → x ∈ L) → (i : Fin L.length.succ) → (b : {st // invariant i st}) →
     (hinv : remaining.length + i = L.length) → m {pr : (Fin L.length.succ) × β // invariant pr.1 pr.2}
@@ -95,7 +94,7 @@ def listForInv {α : outParam (Type u)} {β : Type v} {m : Type v → Type w} [M
         lt_of_lt_of_eq (Nat.lt_of_succ_le (Nat.le_add_left _ _)) h1
       let i' : Fin (L.length) := ⟨i, h2⟩
       do
-      match (← next i' ⟨L[i'], by simp[List.get_mem]⟩ state) with
+      match (← next i' state) with
       | ForInStep.done b' => 
           let ⟨b, binv⟩ := b'
           pure ⟨(Fin.succ i', b), by simpa⟩
@@ -104,9 +103,20 @@ def listForInv {α : outParam (Type u)} {β : Type v} {m : Type v → Type w} [M
 
 #check listForInv
 
-instance : ForInv m (List α) α where
-  forInv := listForInv
+def sumSq (L : List Nat) : { m // ∃ idx, m = ((L.take idx).map (fun n => n^2)).sum} := Id.run do
+  let mut out := 0
+  let ⟨⟨idx, state⟩, inv⟩ ← listForInv L (fun i sum => sum = ((L.take i).map (fun n => n^2)).sum) ⟨out, by simp⟩
+       (fun i ⟨st, invst⟩ => pure (.yield ⟨st + (L[i])^2 , 
+        by
+          simp [List.take_succ, List.get?_eq_get, invst]
+       ⟩))
+  return ⟨state, by use idx; exact inv⟩
 
+#eval sumSq [1, 2, 3]
+
+-- instance : ForInv m α (List α) where
+--   forInv := listForInv 
+  
 -- def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
 --   let mut state : {n : Nat // Even n} := ⟨0, by simp⟩;
 --   state ← listForInv L (fun sum => Even sum) state
