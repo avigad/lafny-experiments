@@ -97,7 +97,7 @@ def listForInv {α : outParam (Type u)} {β : Type v} {m : Type v → Type w} [M
       match (← next i' state) with
       | ForInStep.done b' => 
           let ⟨b, binv⟩ := b'
-          pure ⟨(Fin.succ i', b), by simpa⟩
+          pure ⟨(Fin.succ i', b), binv⟩
       | ForInStep.yield b' => loop xs (fun x hx => hRem x (by simp[hx])) (Fin.succ i') b' h1
   loop L (by simp) 0 init (by simp)
 
@@ -107,15 +107,16 @@ def sumSq (L : List Nat) : IO { m // ∃ idx, m = ((L.take idx).map (fun n => n^
   let mut state := 0
   let ⟨⟨idx, out⟩, inv⟩ ← listForInv L (fun i sum => sum = ((L.take i).map (fun n => n^2)).sum) ⟨state, by simp⟩
        (fun i ⟨st, invst⟩ => do
-          IO.println s!"{i}"
-          pure (.yield ⟨st + (L[i])^2 , 
+          IO.println s!"current index: {i}"
+          return (.yield ⟨st + (L[i])^2 , 
         by
           simp [List.take_succ, List.get?_eq_get, invst]
        ⟩))
   state := out
+  IO.println s!""
   return ⟨state, by use idx; exact inv⟩
 
-#eval sumSq [1, 2, 3]
+#eval sumSq [1, 2, 3, 4, 5]
 
 -- instance : ForInv m α (List α) where
 --   forInv := listForInv 
