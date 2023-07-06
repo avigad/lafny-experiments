@@ -3,7 +3,7 @@ import Mathlib.Data.List.Basic
 import Std.Data.List.Lemmas
 import Lafny.Util 
 
-
+#check forM
 -- this mirrors what's in the do unchained paper, not 100% sure 
 -- how it's relevant yet, but I think it's good to have around.
 def myForM_forIn {β : Type _}

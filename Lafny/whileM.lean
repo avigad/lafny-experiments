@@ -45,4 +45,4 @@ def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ
 
 class whileM (m : Type u → Type v) (β : Type _)
   (cond : β → Prop) where
-  whileM : β → ((b : β) → cond b → m β) → m PUnit
+  whileM : ((b : β) → cond b → m β) → m PUnit
