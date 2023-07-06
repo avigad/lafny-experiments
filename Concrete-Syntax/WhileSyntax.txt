@@ -1,12 +1,12 @@
-let met x := 10
+let mut x := 10
 let mut y := 15
-let mut h : x + y < 100 := sorry -- can be proved
+let mut inv : x + y < 100 := sorry -- can be proved
 -- sugar for (fun x y => x + y < 100) x y
 
 while cond : x < 30 do
   x := x + 5 -- shadow old x
   y := y + 5 -- shadow old y
-  h := sorry
+  inv := sorry
   have : 100 - x < 100 - old x := sorry
-termination_by 100 - x 
+termination_by 100 - x
 

@@ -23,6 +23,58 @@ where
           pure ⟨state, invState, h⟩
     termination_by loop decreasing stateWithInv => meas stateWithInv.1
 
+def new_while_loop_with_invariantM [Monad m] {State obsType Measure : Type _} [WellFoundedRelation Measure]
+    (cond : State → obsType → Bool)
+    (meas : State → Measure)
+    (init : State)
+    (obs : State → m obsType)
+    (next : (state : State) → (x : obsType) → cond state x →
+      m {newState // WellFoundedRelation.rel (meas newState) (meas state)})
+    (rest : (state : State) → (x : obsType) → ¬ (cond state x) → m κ) :
+    m κ  :=
+  loop init
+where
+  loop : State → m κ
+    | state => do
+        let x ← (obs state)
+        if h : cond state x then do
+          let ⟨newState, _⟩ ← next state x h
+          loop newState
+        else
+          rest state x h
+    termination_by loop decreasing stateWithInv => meas stateWithInv
+
+def newWhileExample (f : Nat → Nat) (hf : ∀ x, Even x → Even (f x)) (n : Nat) : IO {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} := do
+  new_while_loop_with_invariantM
+    (State := {p : ℕ × ℕ // Even p.2})
+    (cond := fun p () => p.1.1 > 0)
+    (meas := fun p => p.1.1)
+    (init := ⟨(n, 0), by simp⟩)
+    (next := fun ⟨p, inv_p⟩ obs p1_gt =>
+      have p1_pos : 0 < p.1 := by simpa using p1_gt
+      have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
+      do
+        IO.println s!"foo {p.2}"
+        pure ⟨⟨(p.1 - 2, f p.2), hf _ inv_p⟩, this⟩)
+    (obs := fun _ => pure ())
+    (rest := fun state obs notcond => pure ⟨state, state.2,
+      by simpa using notcond⟩)
+
+def loop_with_invariantM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
+    (meas : State → Measure)
+    (init : State)
+    (next : (state : State) → m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)})) :
+    m κ  :=
+  loop init
+where
+  loop : State → m κ
+    | state => do
+        match (← next state) with
+          | Sum.inl val => pure val
+          | Sum.inr ⟨newState, _⟩  =>
+              loop newState
+  termination_by loop decreasing stateWithInv => meas stateWithInv
+
 def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ) :
   IO {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} := do
   let ⟨p, even_p, npos_p⟩ ← while_loop_with_invariantM
