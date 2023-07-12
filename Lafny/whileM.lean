@@ -60,7 +60,7 @@ def newWhileExample (f : Nat → Nat) (hf : ∀ x, Even x → Even (f x)) (n : N
     (rest := fun state obs notcond => pure ⟨state, state.2,
       by simpa using notcond⟩)
 
-def loop_with_invariantM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
+def loop_blockM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
     (meas : State → Measure)
     (init : State)
     (next : (state : State) → m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)})) :
