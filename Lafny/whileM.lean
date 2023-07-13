@@ -86,9 +86,7 @@ def loop_with_invariant_contM [Monad m] {κ State Measure : Type _} [WellFounded
   cont loop
 where
   loop : State → m κ
-    | state => do
-        next state
-          (fun state' _ => loop state')
+    | state => next state (fun state' _ => loop state')
   termination_by loop decreasing stateWithInv => meas stateWithInv
 
 -- reality check: the first set of data gives rise to the second
