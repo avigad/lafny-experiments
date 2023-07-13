@@ -1,66 +1,10 @@
 import Lafny.Util
 import Mathlib.Data.Nat.Parity
+import Lean.Elab.Term
 open BigOperators
 open Finset
 
-def while_loop_with_invariantM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
-    (invariant : State → Prop)
-    (cond : State → Prop)
-    [DecidablePred cond]
-    (meas : State → Measure)
-    (init : {state : State // invariant state})
-    (next : (state : State) → invariant state → cond state →
-      m {newState // invariant newState ∧ WellFoundedRelation.rel (meas newState) (meas state)}) :
-    m {state // invariant state ∧ ¬ cond state} :=
-  loop init
-where
-  loop : {state : State // invariant state} → m {state // invariant state ∧ ¬ cond state}
-    | ⟨state, invState⟩ =>
-        if h : cond state then do
-          let ⟨newState, nSinv, _⟩ ← next state invState h
-          loop ⟨newState, nSinv⟩
-        else
-          pure ⟨state, invState, h⟩
-    termination_by loop decreasing stateWithInv => meas stateWithInv.1
-
-def new_while_loop_with_invariantM [Monad m] {State obsType Measure : Type _} [WellFoundedRelation Measure]
-    (cond : State → obsType → Bool)
-    (meas : State → Measure)
-    (init : State)
-    (obs : State → m obsType)
-    (next : (state : State) → (x : obsType) → cond state x →
-      m {newState // WellFoundedRelation.rel (meas newState) (meas state)})
-    (rest : (state : State) → (x : obsType) → ¬ (cond state x) → m κ) :
-    m κ  :=
-  loop init
-where
-  loop : State → m κ
-    | state => do
-        let x ← (obs state)
-        if h : cond state x then do
-          let ⟨newState, _⟩ ← next state x h
-          loop newState
-        else
-          rest state x h
-    termination_by loop decreasing stateWithInv => meas stateWithInv
-
-def newWhileExample (f : Nat → Nat) (hf : ∀ x, Even x → Even (f x)) (n : Nat) : IO {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} := do
-  new_while_loop_with_invariantM
-    (State := {p : ℕ × ℕ // Even p.2})
-    (cond := fun p () => p.1.1 > 0)
-    (meas := fun p => p.1.1)
-    (init := ⟨(n, 0), by simp⟩)
-    (next := fun ⟨p, inv_p⟩ obs p1_gt =>
-      have p1_pos : 0 < p.1 := by simpa using p1_gt
-      have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
-      do
-        IO.println s!"foo {p.2}"
-        pure ⟨⟨(p.1 - 2, f p.2), hf _ inv_p⟩, this⟩)
-    (obs := fun _ => pure ())
-    (rest := fun state obs notcond => pure ⟨state, state.2,
-      by simpa using notcond⟩)
-
-def loop_with_invariantM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
+def loop_blockM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
     (meas : State → Measure)
     (init : State)
     (next : (state : State) → m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)})) :
@@ -75,26 +19,51 @@ where
               loop newState
   termination_by loop decreasing stateWithInv => meas stateWithInv
 
-def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ) :
-  IO {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} := do
-  let ⟨p, even_p, npos_p⟩ ← while_loop_with_invariantM
-    (invariant := fun p : ℕ × ℕ => Even p.2)
-    (cond := fun p => 0 < p.1)
-    (meas := fun p => p.1)
-    (init := ⟨(n, 0), by simp⟩)
-    (next := fun p inv_p p1_gt =>
-      have p1_pos : 0 < p.1 := by simpa using p1_gt
-      have : p.1 - 2 < p.1 := tsub_lt_self p1_pos (by simp)
-      do
-        IO.println s!"foo {p.2}"
-        pure ⟨(p.1 - 2, f p.2), ⟨hf _ inv_p, this⟩⟩)
-  have : p.1 = 0 := by simpa using npos_p
-  pure ⟨p, even_p, this⟩
+
+/-
+Macro/Elab behavior
+
+(init := r)
+while cond : p // inv : q do
+  body -- requires proofs
 
 
+- cond : should be optional
+- inv should be entirely optional -- if inv we return that on top of
+    default return being ¬ cond
 
-#eval whileExample' (fun n => 2 * n + 4) (fun n => by simp [parity_simps]) 12
+- state can be inferred to be the set of variables in p and body quotiented
+    by inv if it exists
 
-class whileM (m : Type u → Type v) (β : Type _)
-  (cond : β → Prop) where
-  whileM : ((b : β) → cond b → m β) → m PUnit
+- init can be inferred, if SMT fails (really a sorry for now)
+    then require the init on top
+-/
+open Lean Elab Term Meta
+syntax "while' (" (ident " : ")? term (" // " ident " : " term)?")" term : term
+
+macro_rules
+| `(while' ($[$condName :]? $cond $[// $invName : $inv]?) $body) => 
+  `($body)
+
+
+#eval while' (h : 2 < 5 // inv : 3) Id.run do 
+  let x := 5 
+  let y := 4 
+  return x
+
+-- elab "while' " (ident " : ")? cond:term (" // " ident " : " term)? body:term : term <= t => do
+--   let bodyExpr ← Term.elabTerm body none
+--   let condExpr ← Term.elabTerm cond none
+--   let condVars := condExpr.getUsedConstants'
+--   logInfo "foo"
+--   elabTerm body none
+
+elab "while' " "("cond:term:10")" "("body:term:50")" : term => do
+  let bodyExpr ← Term.elabTerm body none
+  let condExpr ← Term.elabTerm cond none
+  let condVars := condExpr.collectFVars
+  logInfo s!"{← condVars}"
+  return bodyExpr
+
+variable (x : Nat)
+#check while' (x < 5) (Id.run do return 5)
