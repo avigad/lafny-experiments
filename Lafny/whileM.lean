@@ -75,6 +75,7 @@ where
               loop newState
   termination_by loop decreasing stateWithInv => meas stateWithInv
 
+
 def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ) :
   IO {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} := do
   let ⟨p, even_p, npos_p⟩ ← while_loop_with_invariantM
