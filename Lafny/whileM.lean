@@ -60,10 +60,11 @@ def newWhileExample (f : Nat → Nat) (hf : ∀ x, Even x → Even (f x)) (n : N
     (rest := fun state obs notcond => pure ⟨state, state.2,
       by simpa using notcond⟩)
 
-def loop_with_invariantM [Monad m] {State Measure : Type _} [WellFoundedRelation Measure]
-    (meas : State → Measure)
-    (init : State)
-    (next : (state : State) → m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)})) :
+def loop_with_invariantM [Monad m] {κ State Measure : Type _} [WellFoundedRelation Measure]
+      (meas : State → Measure)
+      (init : State)
+      (next : (state : State) →
+        m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)})) :
     m κ  :=
   loop init
 where
@@ -74,6 +75,33 @@ where
           | Sum.inr ⟨newState, _⟩  =>
               loop newState
   termination_by loop decreasing stateWithInv => meas stateWithInv
+
+def loop_with_invariant_contM [Monad m] {κ State Measure : Type _} [WellFoundedRelation Measure]
+      (meas : State → Measure)
+      (cont : (State → m κ) → m κ)
+      (next : (state : State) →
+        ((newState : State) → WellFoundedRelation.rel (meas newState) (meas state) → m κ) →
+          m κ) :
+    m κ :=
+  cont loop
+where
+  loop : State → m κ
+    | state => do
+        next state
+          (fun state' _ => loop state')
+  termination_by loop decreasing stateWithInv => meas stateWithInv
+
+-- reality check: the first set of data gives rise to the second
+example [Monad m] {κ State Measure : Type _} [WellFoundedRelation Measure]
+      (meas : State → Measure)
+      (next : (state : State) →
+        m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)})) :
+    (state : State) →
+      ((newState : State) → WellFoundedRelation.rel (meas newState) (meas state) → m κ) → m κ :=
+fun state f => do
+  match ← next state with
+    | Sum.inl k => return k
+    | Sum.inr ⟨newState, hrel⟩ => f newState hrel
 
 def whileExample' (f : ℕ → ℕ) (hf : ∀ x, Even x → Even (f x)) (n : ℕ) :
   IO {p : ℕ × ℕ // Even p.2 ∧ p.1 = 0} := do
