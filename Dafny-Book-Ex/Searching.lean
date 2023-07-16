@@ -1,5 +1,5 @@
 import Lafny.whileM
-
+-- import Mathlib.Data.List.Basic
 -- This should have additional constraint that 0 <= n <= L.length
 -- But that was way too verbose so I omitted it
 def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
@@ -34,5 +34,41 @@ def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
 
 #check LinearSearch
 
+
+def BinarySearch (L : List Nat) (hL : ∀ i j, i < L.length → j < L.length →  i < j → L[i]'(by sorry) ≤ L[j]'(by sorry)) (key : Nat)
+ : IO {n // n ≤ L.length ∧ (∀ i < n, L[i]'(by sorry) ≤ key) ∧ (∀ j ≥ n, j < L.length → key ≤ L[j]'(by sorry))}:= do
+
+  let κ ← loop_blockM
+    (meas := fun ⟨⟨lo, hi⟩, _⟩ => hi - lo)
+    (init := (⟨⟨0, L.length⟩, sorry⟩ : {p : Nat × Nat // (p.1 ≤ p.2) ∧ (p.2 ≤ L.length) ∧ (∀ i < p.1, L[i]'(sorry) ≤ key) ∧ (∀ i > p.2, i < L.length → key ≤ L[i]'(sorry))}))
+    (next := fun ⟨⟨lo, hi⟩, h⟩ => 
+      if h' : hi ≤ lo then
+        return Sum.inl ⟨L.length, by sorry⟩
+      else
+        let mid := (hi + lo)/2
+        if hmid1 : (L[mid]'(sorry) < key) then
+          return Sum.inr ⟨⟨(mid+1, hi), sorry⟩, sorry⟩
+        else
+          if hmid2 : (L[mid]'(sorry) = key) then
+            return Sum.inl ⟨mid, by 
+              constructor
+              · dsimp ; simp at h ; sorry
+              · constructor
+                · intro i h_i
+                  rw [← hmid2]
+                  apply hL 
+                  · sorry
+                  · sorry
+                  · exact h_i 
+                · sorry
+          ⟩
+          else
+            return Sum.inr ⟨⟨(lo, mid), sorry⟩, sorry⟩)
+  return κ
+
+#check BinarySearch [1, 2, 3, 4, 5] (sorry) 6
+
+  
+  
 
 
