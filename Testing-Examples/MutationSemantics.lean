@@ -31,3 +31,8 @@ def mutationSemantics := do
 #print mutationSemantics
 #eval mutationSemantics
 #print MProd
+
+-- variable (n m: Nat) (p : Nat → Nat → Prop) (foo : p n m )
+-- example : {q // p q.1 q.2} := ⟨Prod.mk n m, foo⟩
+
+-- example : {⟨q₁, q₂⟩ : Nat × Nat// p q₁ q₂} := ⟨⟨n, m⟩, foo⟩

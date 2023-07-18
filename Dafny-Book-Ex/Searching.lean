@@ -1,7 +1,7 @@
 import Lafny.whileM
 -- import Mathlib.Data.List.Basic
 -- This should have additional constraint that 0 <= n <= L.length
--- But that was way too verbose so I omitted it
+-- But was verbose so I omitted it
 def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
   : {n // (n = L.length ∨ p (L[n]'(by sorry))) ∧ (n = L.length → ∀ i < L.length, ¬ p (L[i]'(by sorry))) } := Id.run do
   -- have : ∀ i, i < 0 → i < L.length → ¬p (L[i]'(by sorry)) := by sorry
@@ -35,6 +35,9 @@ def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
 #check LinearSearch
 
 
+-- this is a bit imprecise as if n is L.length no garauntee the thing doesnt exist
+-- in the list but that's easy enough to add and more important to generate
+-- more examples
 def BinarySearch (L : List Nat) (hL : ∀ i j, i < L.length → j < L.length →  i < j → L[i]'(by sorry) ≤ L[j]'(by sorry)) (key : Nat)
  : IO {n // n ≤ L.length ∧ (∀ i < n, L[i]'(by sorry) ≤ key) ∧ (∀ j ≥ n, j < L.length → key ≤ L[j]'(by sorry))}:= do
 
@@ -70,5 +73,3 @@ def BinarySearch (L : List Nat) (hL : ∀ i j, i < L.length → j < L.length →
 
   
   
-
-
