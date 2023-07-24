@@ -1,6 +1,7 @@
 import Mathlib.Data.Nat.Parity
 import Mathlib.Data.List.Basic
 import Std.Data.List.Lemmas
+import Std.Data.Fin.Basic
 import Lafny.Util 
 
 #check forM
@@ -118,8 +119,9 @@ def sumSq (L : List Nat) : IO { m // ∃ idx, m = ((L.take idx).map (fun n => n^
 
 #eval sumSq [1, 2, 3, 4, 5]
 
--- instance : ForInv m α (List α) where
---   forInv := listForInv 
+set_option trace.Meta.isDefEq true
+instance : ForInv m α (List α) where
+  forInv := listForInv 
   
 -- def sumOfEven (L : List Nat) (h : ∀ x, x ∈ L → Even x) := Id.run do
 --   let mut state : {n : Nat // Even n} := ⟨0, by simp⟩;

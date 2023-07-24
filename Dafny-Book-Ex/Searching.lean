@@ -1,7 +1,6 @@
 import Lafny.whileM
 -- import Mathlib.Data.List.Basic
--- This should have additional constraint that 0 <= n <= L.length
--- But was verbose so I omitted it
+
 def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
   : {n // (n = L.length ∨ p (L[n]'(by sorry))) ∧ (n = L.length → ∀ i < L.length, ¬ p (L[i]'(by sorry))) } := Id.run do
   -- have : ∀ i, i < 0 → i < L.length → ¬p (L[i]'(by sorry)) := by sorry
@@ -28,18 +27,18 @@ def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
             · intro hk ; contradiction
             ⟩
         else
-          return Sum.inr ⟨⟨k+1, by sorry⟩, by sorry⟩
+          return Sum.inr ⟨⟨k+1, sorry⟩, sorry⟩
     )
   return κ
 
-#check LinearSearch
+#eval LinearSearch (fun x => x = 5) [1, 2, 5, 9]
 
 
 -- this is a bit imprecise as if n is L.length no garauntee the thing doesnt exist
 -- in the list but that's easy enough to add and more important to generate
 -- more examples
-def BinarySearch (L : List Nat) (hL : ∀ i j, i < L.length → j < L.length →  i < j → L[i]'(by sorry) ≤ L[j]'(by sorry)) (key : Nat)
- : IO {n // n ≤ L.length ∧ (∀ i < n, L[i]'(by sorry) ≤ key) ∧ (∀ j ≥ n, j < L.length → key ≤ L[j]'(by sorry))}:= do
+def BinarySearch (L : List Nat) (hL : ∀ i j, i < L.length → j < L.length →  i < j → L[i]'(sorry) ≤ L[j]'(sorry)) (key : Nat)
+ : IO {n // n ≤ L.length ∧ (∀ i < n, L[i]'(sorry) ≤ key) ∧ (∀ j ≥ n, j < L.length → key ≤ L[j]'(sorry))}:= do
 
   let κ ← loop_blockM
     (meas := fun ⟨⟨lo, hi⟩, _⟩ => hi - lo)
@@ -69,7 +68,7 @@ def BinarySearch (L : List Nat) (hL : ∀ i j, i < L.length → j < L.length →
             return Sum.inr ⟨⟨(lo, mid), sorry⟩, sorry⟩)
   return κ
 
-#check BinarySearch [1, 2, 3, 4, 5] (sorry) 6
+#eval BinarySearch [1, 2, 3, 4, 5, 94] (sorry) 94
 
   
   

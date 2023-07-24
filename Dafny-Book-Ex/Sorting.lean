@@ -5,7 +5,7 @@ import Mathlib.Data.List.Sort
 import Mathlib.Data.List.Perm
 
 open List Sorted
-#check List.set
+
 def swap (A : List Nat) (i₁ i₂ : Fin A.length) : {B : List Nat // Perm A B ∧ ∀ i < B.length, i ≠ i₁ → i ≠ i₂ → A[i]'(sorry) = B[i]'(sorry)} :=
   let v₁ := A[i₁]
   let v₂ := A[i₂]
@@ -55,13 +55,13 @@ def selectionSort(A : List Nat) : {B : List Nat // Perm A B ∧ Sorted Nat.lt B}
   return κ
 
 #eval selectionSort [5, 3, 0, 2, 1, 4]
-def insertBefore (A : List Nat) (i : Nat) := Id.run do
+def insertBefore (A : List Nat) (i : Nat) : {B // Perm A B ∧ ∀ k < i, B[k]'(sorry) ≤ B[k+1]'(sorry)}:= Id.run do
   let κ ← loop_blockM
           (meas := fun ⟨(j, L), _⟩ => j)
           (init := (⟨(i, A), sorry⟩ : {p : Nat × List Nat // Perm A p.2 ∧ ∀ k ≥ p.1, k ≤ i →  p.2[p.1]'(sorry) ≤ p.2[k]'(sorry)}))
           (next := fun ⟨⟨j, B⟩, hB⟩ => 
             if hj : j ≤ 0 ∨ B[j-1]'(sorry) ≤ B[j]'(sorry) then
-              return Sum.inl (⟨B, sorry⟩ : {B // Perm A B ∧ ∀ k < i, B[k]'(sorry) ≤ B[k+1]'(sorry)}) 
+              return Sum.inl ⟨B, sorry⟩ 
             else
               let B' := swap B ⟨j, sorry⟩ ⟨j-1, sorry⟩
               return Sum.inr ⟨⟨⟨j-1, B'⟩, sorry⟩, sorry⟩)
@@ -83,4 +83,4 @@ def insertionSort (A : List Nat) : {B : List Nat // Perm A B ∧ Sorted Nat.lt B
     )
   return κ
 
-#eval insertionSort [1, 2, 5, 7, 2, 9, 3]
+#eval insertionSort [5, 2, 5, 7, 2, 9, 3]
