@@ -2,7 +2,6 @@ import Lean
 import Lean.Elab.Do
 
 
-
 open Lean Parser
 variable (m)
 #synth ForIn m (List Nat) Nat
@@ -13,13 +12,30 @@ syntax terminationByElem :=
 syntax decreasingByElem :=
   ppDedent(ppLine) "decreasing_by " tacticSeq
 
+syntax holdsByElem :=
+  ppDedent(ppLine) "holds_by " tacticSeq
+
 syntax (name := whileElem)
   "while" (ident " : ")? termBeforeDo " do " doSeq
   (terminationByElem)? (decreasingByElem)? : doElem
 
 syntax (name := loopElem) "loop'"  (" (" &"label" " := " ident ")")? doSeq
   (terminationByElem)? (decreasingByElem)? : doElem
+
 syntax (name := breakElem) "break'"  (" (" &"label" " := " ident ")")? (ppSpace colGt term)? : doElem
+
+syntax (name := forElem)
+  "for" (ident " : ")? termBeforeDo (" // invariant" (":" termBeforeDo)? " := " termBeforeDo)? " do " doSeq
+  (holdsByElem)? : doElem
+
+
+/-
+  let this := _
+  for x in xs // invariant := this do
+    <body>
+  holds_by
+
+-/
 
 macro_rules
   | `(doElem| while $h : $cond do $seq:doSeq $[termination_by $t]? $[decreasing_by $tac]?) =>
@@ -53,7 +69,7 @@ macro_rules
   | `(doElem| break' $[(label := $l)]? ) =>
     `(doElem| break)
 
-#check `(
+#check (
   show Id Unit from do
   let mut x := 10
   let mut y := 15
@@ -62,9 +78,11 @@ macro_rules
   let xc ← loop' (label := foo)
     x := x + 1
     y := y + 1
-    inv := _
+    -- inv := _
     break' (label := foo) 1
   termination_by 100 - x
   decreasing_by simp
   pure xc
 )
+
+-- #eval loop'
