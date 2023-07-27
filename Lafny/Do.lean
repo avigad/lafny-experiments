@@ -1,4 +1,5 @@
 import Lean
+import Lafny.WhileSyntax
 
 def Cont (κ α : Type _) := (α → κ) → κ
 
@@ -13,6 +14,9 @@ class ForM' (m : Type u → Type v) (ρ : Type w₁) (α : outParam (Type w₂))
 
 instance [Monad m] : ForM' m (List α) α (· ∈ ·) where
   forM' l body := forIn' l () (fun a h _ => .yield <$> body a h)
+
+class LoopM (m : Type u → Type v) where
+  loopM : m PUnit → m α
 
 namespace Mathlib.Tactic.Do
 open Lean.Parser.Term
@@ -465,10 +469,13 @@ def Continuation.withJP'
   | .id ty => K ty fun e _ => return e
   | _ => unreachable!
 
-def doExit (exit : Exit) (value : Expr) (tail : Continuation) : M CodeBlock := fun ctx => do
+def doExit (exit : Exit) (value : Option Term) (tail : Continuation) : M CodeBlock := fun ctx => do
   tail.markUnreachable
   let some jp := ctx.exits.find? exit
     | throwError "exit point not found, perhaps you are using `break` outside of a loop?"
+  let value ← match value with
+    | some e => elabTerm e jp.ty
+    | none => mkConstWithFreshMVarLevels ``PUnit.unit
   pure { code := ← jp.jump value ctx.muts, exits := RBTree.empty.insert exit }
 
 def doReturn (value : Option Term) (tail : Continuation) : M CodeBlock := fun ctx => do
@@ -614,7 +621,6 @@ def withDoFor (h? : Option Ident) (x xs : Term)
   let r ← mkLambdaFVars fvars' (← tail (← mkConstWithFreshMVarLevels ``PUnit.unit) ctx.muts)
   pure { res with code := mkAppN (mkApp main (.lam `_ unit r .default)) fvars' }
 
-
 def withDoParallelFor (start : M CodeBlock → M CodeBlock)
     (args : List (Option Ident × Term × Term))
     (body : TSyntax ``doSeq) (tail : Continuation) : M CodeBlock :=
@@ -628,6 +634,29 @@ def withDoParallelFor (start : M CodeBlock → M CodeBlock)
       | none => break
       | some ($y, s') => s := s'; $body)
     withDoParallelFor (withDoElem elem ∘ .then  .missing ∘ start) rest body' tail
+
+def withDoLoop (label : Option Name)
+    (body : TSyntax ``doSeq) (tail : Continuation) : M CodeBlock := tail.withJP' fun bTy tail => do
+  let ctx ← read
+  let unit ← mkConstWithFreshMVarLevels ``PUnit
+  let (res, fvars', m, inst) ← withNewJP unit fun cont monadTy => do
+    withReader (fun ctx => { ctx with
+      exits := ctx.exits
+        |>.insert (.continue label) { ty := unit, jump := jumpToJP ctx cont }
+        |>.insert (.break label) { ty := bTy, jump := tail }
+      expectedType := unit
+    }) do
+      let m ← mkFreshExprMVar none .syntheticOpaque (← mkFreshUserName `rhs)
+      let inst ← synthInstance <| ← mkAppM ``LoopM #[← mkAppM ``Cont #[monadTy]]
+      m.mvarId!.withContext do
+        let res ← runDoSeq body <| .pure .missing unit (jumpToJP ctx cont)
+        let fvars' := res.updates.toArray.map (Expr.fvar <| ctx.muts.find! ·)
+        pure ({ res with code := ← mkLambdaFVars fvars' res.code }, m, inst)
+  m.mvarId!.assign res.code
+  let main ← mkAppOptM ``LoopM.loopM #[none, inst, bTy, m]
+  let r ← withLocalDeclD (← mkFreshUserName `ret) bTy fun ret => do
+    mkLambdaFVars (#[ret] ++ fvars') <| ← tail ret ctx.muts
+  pure { res with code := mkAppN (mkApp main r) fvars' }
 
 def withDoTryCatch
     (body : Continuation → M CodeBlock)
@@ -788,12 +817,16 @@ def withDoElemCore (doElem : TSyntax `doElem) (tail : Continuation) : M CodeBloc
     tail.withJP fun tail => withIf i cond tail.run (runDoSeq t tail)
   | `(doElem| for $[$[$h :]? $x in $xs],* do $t) =>
     tail.withJP <| withDoParallelFor id (h.zip $ x.zip xs).reverse.toList t
+  | `(doElem| loop' $[(label := $l)]? $t) =>
+    tail.withJP <| withDoLoop (l.map (·.getId)) t
   | `(doElem| match $[$gen]? $[$motive]? $discr,* with $[| $[$patsss,*]|* => $val]*) =>
     tail.withJP fun tail => withMatch gen motive discr patsss (val.map (runDoSeq · tail))
   | `(doElem| break) =>
-    doExit (.break none) (← mkConstWithFreshMVarLevels ``PUnit.unit) tail
+    doExit (.break none) none tail
   | `(doElem| continue) =>
-    doExit (.continue none) (← mkConstWithFreshMVarLevels ``PUnit.unit) tail
+    doExit (.continue none) none tail
+  | `(doElem| break' $[(label := $l)]? $(e)?) =>
+    doExit (.break (l.map (·.getId))) e tail
   | `(doElem| return $(e)?) => doReturn e tail
   | `(doElem| dbg_trace $msg) =>
     withSyntaxBinder #[] (fun rhs => `(dbg_trace $msg; ?$rhs)) tail.run
