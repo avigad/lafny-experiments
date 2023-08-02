@@ -647,7 +647,7 @@ def withDoLoop (label : Option Name)
       expectedType := unit
     }) do
       let m ← mkFreshExprMVar none .syntheticOpaque (← mkFreshUserName `rhs)
-      let inst ← synthInstance <| ← mkAppM ``LoopM #[← mkAppM ``Cont #[monadTy]]
+      let inst ← synthInstance <| ← mkAppM ``LoopM #[.app (← instantiateMVars ((.const ``Cont []))) monadTy]
       m.mvarId!.withContext do
         let res ← runDoSeq body <| .pure .missing unit (jumpToJP ctx cont)
         let fvars' := res.updates.toArray.map (Expr.fvar <| ctx.muts.find! ·)
@@ -657,6 +657,37 @@ def withDoLoop (label : Option Name)
   let r ← withLocalDeclD (← mkFreshUserName `ret) bTy fun ret => do
     mkLambdaFVars (#[ret] ++ fvars') <| ← tail ret ctx.muts
   pure { res with code := mkAppN (mkApp main r) fvars' }
+
+def withDoFor'' (invName : Option (Term)) 
+    (invType : Option (Option Term))
+    (invProof : Option Term)
+    (body : TSyntax ``doSeq)
+    (x : Ident)
+    (xs : Term)
+    (curStream : Option Ident)
+    (curInv : Option Ident)
+    (invNext : Option Term)
+    (tail : Continuation) : M CodeBlock :=
+    -- synthesize a stream of xs
+    match invType with
+    | none => throwError "AAAAA"
+    | some iTypOpt => 
+      match invName, invNext, invProof, curStream, curInv with
+      | some iName, some invNext, some iProof, some curStream, some curInv => do
+        let forLoopBody ← `(doSeq|
+          let mut $curStream := toStream $xs
+          let mut $curInv $[:$iTypOpt]? := $iProof
+          loop'
+            match h : Stream.next? $curStream with
+            | none => break ⟨h, $curInv⟩
+            | some ($x, xsStream') =>   
+                $curStream:ident := xsStream'
+                $body
+                $curInv:ident := $invNext
+        )
+        runDoSeq forLoopBody tail
+      | _, _, _, _, _ => throwError "unreachable"
+
 
 def withDoTryCatch
     (body : Continuation → M CodeBlock)
@@ -819,6 +850,8 @@ def withDoElemCore (doElem : TSyntax `doElem) (tail : Continuation) : M CodeBloc
     tail.withJP <| withDoParallelFor id (h.zip $ x.zip xs).reverse.toList t
   | `(doElem| loop' $[(label := $l)]? $t) =>
     tail.withJP <| withDoLoop (l.map (·.getId)) t
+  | `(doElem| for'' $x:ident $[: $ty]? in $xs $[// $invName $[: $invType]? := $invProof]? do $body:doSeq $[holds_by $curInv $curStream => $invNext]?) => 
+    withDoFor'' invName invType invProof body x xs curStream curInv invNext tail
   | `(doElem| match $[$gen]? $[$motive]? $discr,* with $[| $[$patsss,*]|* => $val]*) =>
     tail.withJP fun tail => withMatch gen motive discr patsss (val.map (runDoSeq · tail))
   | `(doElem| break) =>
@@ -841,7 +874,6 @@ def withDoElemCore (doElem : TSyntax `doElem) (tail : Continuation) : M CodeBloc
       withDoTry doElem[0] doElem[1] doElem[2].getArgs doElem[3].getOptional? tail
     else throwError "unexpected do-element of kind {doElem.getKind}:\n{doElem}"
 
-initialize withDoElemRef.set withDoElemCore
 
 elab "do'" seq:doSeq : term <= expectedType => do
   let { m, expectedType } ← extractBind expectedType
