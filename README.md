@@ -2,6 +2,7 @@
 A repository for experimenting on methods of code verification in Lean
 
 # Notes from trials
+## Generic Loops or While and For Loops?
 The main insight from our failed attempts is that doing the most general
 form of looping is best. Implementing `for` and `while` loops seperately
 introduces overhead which makes implementation and usage tedious. The best choice that we found was to implement a generic loop with a `break` and, if implementing `for` and `while` loops at all, simply
@@ -24,6 +25,18 @@ loop do
         x := x + 1
 ```
 With Lean 4 elaborators this translation can be done automatically, although this is not currently implemented.
+
+## Canonical forms of looping
+Given a goal of these generic loops, we then sought to look for
+a simplest form. We came up with the following signature:
+`(meas : State → Measure) → (init : State) →
+      (next : (state : State) →
+        m (κ ⊕ {newState // WellFoundedRelation.rel (meas newState) (meas state)}))`
+
+This signature has a few components, a `meas` which abstracts the `State` into a `Measure` that we prove to be decreasing, the initial state `init`, and a `next` function which given a state, returns
+either a `κ` which can be thought of as "any extra additional information we want when our loop returns". Typically this is 
+some values subtyped to include an invariant. Or, we return a `newState`
+such that its `Measure` with respect to `State` is decreasing.
 
 # Repository Structure
 This repository is research of experiments of imperative code verification in Lean.
