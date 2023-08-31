@@ -1,6 +1,7 @@
 import Lafny.whileM
 -- import Mathlib.Data.List.Basic
 
+
 def LinearSearch (p : Nat → Prop) [DecidablePred p] (L : List Nat)
   : {n // (n = L.length ∨ p (L[n]'(by sorry))) ∧ (n = L.length → ∀ i < L.length, ¬ p (L[i]'(by sorry))) } := Id.run do
   -- have : ∀ i, i < 0 → i < L.length → ¬p (L[i]'(by sorry)) := by sorry

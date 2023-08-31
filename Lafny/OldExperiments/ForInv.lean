@@ -1,7 +1,7 @@
 import Mathlib.Data.Nat.Parity
 import Mathlib.Data.List.Basic
 import Std.Data.List.Lemmas
-import Lafny.Util 
+import Lafny.OldExperiments.Util 
 
 #check forM
 -- this mirrors what's in the do unchained paper, not 100% sure 
